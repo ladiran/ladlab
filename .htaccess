@@ -6,3 +6,8 @@ RewriteEngine On
 RewriteRule ^$ public/ [L]
 RewriteRule ^(?!public/)(.*)$ public/$1 [L]
 </IfModule>
+
+# Never serve version-control files (.git, .gitignore), in case the site is run from a folder cloned with git.
+<IfModule mod_alias.c>
+RedirectMatch 404 /\.git
+</IfModule>

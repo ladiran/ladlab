@@ -20,3 +20,8 @@ AddOutputFilterByType DEFLATE text/html text/css application/javascript applicat
 Header set Cache-Control "public, max-age=604800"
 </FilesMatch>
 </IfModule>
+
+# Never serve version-control files (.git, .gitignore), in case the site is run from a folder cloned with git.
+<IfModule mod_alias.c>
+RedirectMatch 404 /\.git
+</IfModule>
