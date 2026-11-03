@@ -1,0 +1,22 @@
+Options -Indexes
+DirectoryIndex index.php
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Someone typed /public/ in the address (site in a sub-folder): send them to the clean address, so search engines see each page once.
+RewriteCond %{DOCUMENT_ROOT} !/public/?$ [NC]
+RewriteCond %{THE_REQUEST} \s/(?:[^\s/]+/)*public(?:/|\s|\?) [NC]
+RewriteCond %{REQUEST_URI} ^(.*)/public(/.*)?$ [NC]
+RewriteRule ^ %1%2 [R=301,L]
+# Serve real files (css, js, images, uploads, install.php) directly, everything else through the app.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+</IfModule>
+<IfModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json application/xml application/rss+xml image/svg+xml text/plain
+</IfModule>
+<IfModule mod_headers.c>
+<FilesMatch "\.(css|js|svg|png|jpg|jpeg|webp|gif|woff2)$">
+Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
+</IfModule>

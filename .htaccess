@@ -1,0 +1,8 @@
+# Project-root rewrite: lets http://localhost/clearsky_academy/ work on WAMP without a virtual host.
+# For production, point the web server's document root at the /public folder instead.
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^$ public/ [L]
+RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>

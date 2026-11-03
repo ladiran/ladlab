@@ -1,0 +1,9 @@
+config/.env
+storage/install.lock
+storage/logs/*.log
+public/uploads/images/*
+public/uploads/docs/*
+!public/uploads/images/.gitkeep
+!public/uploads/docs/.gitkeep
+/storage/migrated.flag
+storage/keys/

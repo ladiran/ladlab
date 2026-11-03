@@ -1,0 +1,172 @@
+-- Phase 3: customer accounts + T-shirt shop.
+
+ALTER TABLE users
+  ADD COLUMN phone VARCHAR(40) NOT NULL DEFAULT '' AFTER email,
+  ADD COLUMN address_line VARCHAR(200) NOT NULL DEFAULT '' AFTER phone,
+  ADD COLUMN city VARCHAR(100) NOT NULL DEFAULT '' AFTER address_line,
+  ADD COLUMN state VARCHAR(60) NOT NULL DEFAULT '' AFTER city;
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_token (token_hash),
+  KEY idx_user (user_id, created_at),
+  CONSTRAINT fk_reset_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS products (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(150) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  category VARCHAR(60) NOT NULL DEFAULT 'T-shirts',
+  tagline VARCHAR(200) NOT NULL DEFAULT '',
+  description MEDIUMTEXT NULL,
+  details MEDIUMTEXT NULL,
+  price INT UNSIGNED NOT NULL DEFAULT 0,
+  compare_price INT UNSIGNED NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'draft',
+  is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
+  colours TEXT NULL,
+  sizes VARCHAR(200) NOT NULL DEFAULT 'S,M,L,XL,XXL',
+  design_text VARCHAR(80) NOT NULL DEFAULT '',
+  design_style VARCHAR(12) NOT NULL DEFAULT 'text',
+  is_sample TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_list (status, is_sample, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_images (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  path VARCHAR(255) NOT NULL,
+  alt VARCHAR(200) NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  KEY idx_product (product_id, sort_order),
+  CONSTRAINT fk_img_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_variants (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  colour VARCHAR(40) NOT NULL,
+  colour_hex CHAR(7) NOT NULL DEFAULT '#cccccc',
+  size VARCHAR(10) NOT NULL,
+  sku VARCHAR(80) NOT NULL,
+  bin_location VARCHAR(40) NOT NULL DEFAULT '',
+  stock INT NOT NULL DEFAULT 0,
+  reorder_level INT NOT NULL DEFAULT 3,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY uq_variant (product_id, colour, size),
+  UNIQUE KEY uq_sku (sku),
+  CONSTRAINT fk_var_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(40) NOT NULL UNIQUE,
+  type VARCHAR(8) NOT NULL DEFAULT 'percent',
+  value INT UNSIGNED NOT NULL DEFAULT 0,
+  min_order INT UNSIGNED NOT NULL DEFAULT 0,
+  max_uses INT UNSIGNED NOT NULL DEFAULT 0,
+  used_count INT UNSIGNED NOT NULL DEFAULT 0,
+  expires_on DATE NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS shipping_rates (
+  state VARCHAR(40) NOT NULL PRIMARY KEY,
+  fee INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS orders (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_no VARCHAR(24) NULL UNIQUE,
+  access_token CHAR(32) NOT NULL,
+  user_id INT UNSIGNED NULL,
+  email VARCHAR(190) NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  phone VARCHAR(40) NOT NULL DEFAULT '',
+  delivery_method VARCHAR(8) NOT NULL DEFAULT 'ship',
+  address_line VARCHAR(200) NOT NULL DEFAULT '',
+  city VARCHAR(100) NOT NULL DEFAULT '',
+  state VARCHAR(60) NOT NULL DEFAULT '',
+  country VARCHAR(40) NOT NULL DEFAULT 'Nigeria',
+  subtotal INT UNSIGNED NOT NULL DEFAULT 0,
+  discount INT UNSIGNED NOT NULL DEFAULT 0,
+  shipping_fee INT UNSIGNED NOT NULL DEFAULT 0,
+  total INT UNSIGNED NOT NULL DEFAULT 0,
+  coupon_code VARCHAR(40) NOT NULL DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT 'awaiting_payment',
+  payment_method VARCHAR(20) NOT NULL DEFAULT 'bank_transfer',
+  receipt_path VARCHAR(255) NOT NULL DEFAULT '',
+  receipt_at DATETIME NULL,
+  paid_at DATETIME NULL,
+  packed_at DATETIME NULL,
+  shipped_at DATETIME NULL,
+  delivered_at DATETIME NULL,
+  cancelled_at DATETIME NULL,
+  expires_at DATETIME NULL,
+  courier VARCHAR(60) NOT NULL DEFAULT '',
+  tracking_no VARCHAR(80) NOT NULL DEFAULT '',
+  customer_note VARCHAR(500) NOT NULL DEFAULT '',
+  admin_note VARCHAR(500) NOT NULL DEFAULT '',
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at),
+  KEY idx_user (user_id),
+  KEY idx_email (email),
+  CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NULL,
+  variant_id INT UNSIGNED NULL,
+  name VARCHAR(150) NOT NULL,
+  size VARCHAR(10) NOT NULL DEFAULT '',
+  colour VARCHAR(40) NOT NULL DEFAULT '',
+  sku VARCHAR(80) NOT NULL DEFAULT '',
+  bin_location VARCHAR(40) NOT NULL DEFAULT '',
+  unit_price INT UNSIGNED NOT NULL,
+  qty INT UNSIGNED NOT NULL,
+  line_total INT UNSIGNED NOT NULL,
+  KEY idx_order (order_id),
+  CONSTRAINT fk_item_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
+  CONSTRAINT fk_item_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE SET NULL,
+  CONSTRAINT fk_item_variant FOREIGN KEY (variant_id) REFERENCES product_variants (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS order_events (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  event VARCHAR(30) NOT NULL,
+  detail VARCHAR(400) NOT NULL DEFAULT '',
+  actor VARCHAR(10) NOT NULL DEFAULT 'system',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_order (order_id, created_at),
+  CONSTRAINT fk_event_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS stock_log (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  variant_id INT UNSIGNED NULL,
+  label VARCHAR(160) NOT NULL DEFAULT '',
+  change_qty INT NOT NULL,
+  stock_after INT NOT NULL,
+  reason VARCHAR(100) NOT NULL DEFAULT '',
+  order_id INT UNSIGNED NULL,
+  actor VARCHAR(10) NOT NULL DEFAULT 'system',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_variant (variant_id, created_at),
+  KEY idx_created (created_at),
+  CONSTRAINT fk_stock_variant FOREIGN KEY (variant_id) REFERENCES product_variants (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
