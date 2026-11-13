@@ -18,10 +18,16 @@ final class CourseChat
         if (!$user) {
             return false;
         }
-        if ($user['role'] === 'admin') {
-            return true;
+        if (Lecturers::canManage($user, $course)) {
+            return true; // administrators and the course's lecturer
         }
         return self::enabled($course) && Learn::hasAccess($user, (int)$course['id']);
+    }
+
+    /** May delete any message and mute students: administrators and the course's lecturer. */
+    public static function isModerator(?array $user, array $course): bool
+    {
+        return Lecturers::canManage($user, $course);
     }
 
     public static function muted(int $userId, int $courseId): bool
@@ -57,10 +63,13 @@ final class CourseChat
     }
 
     /** What is shown as the author: the lecturer by name, students as "Ada O." (never full names). */
-    public static function label(array $m): string
+    public static function label(array $m, ?array $course = null): string
     {
         if (($m['role'] ?? '') === 'admin') {
-            return (string)(setting('owner_name') ?: $m['name'] ?: 'Lecturer');
+            return (string)(setting('owner_name') ?: $m['name'] ?: Lecturers::label());
+        }
+        if ($course !== null && ($m['role'] ?? '') === 'lecturer' && (int)($course['lecturer_id'] ?? 0) === (int)$m['user_id']) {
+            return (string)$m['name'];
         }
         return Community::shortName((string)($m['name'] ?? 'Student'));
     }
@@ -69,7 +78,7 @@ final class CourseChat
     public static function listHtml(array $course, array $viewer, array $messages): string
     {
         ob_start();
-        partial('course_chat_list', ['c' => $course, 'viewer' => $viewer, 'messages' => $messages, 'mutedIds' => $viewer['role'] === 'admin' ? self::mutedIds((int)$course['id']) : []]);
+        partial('course_chat_list', ['c' => $course, 'viewer' => $viewer, 'messages' => $messages, 'mutedIds' => self::isModerator($viewer, $course) ? self::mutedIds((int)$course['id']) : []]);
         return (string)ob_get_clean();
     }
 }

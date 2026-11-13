@@ -222,7 +222,7 @@ final class AccountController
         Audit::log('password_reset_done', $row['email']);
         Mailer::send($row['email'], 'Your ' . Settings::get('site_name') . ' password was changed', "Hello {$row['name']},\n\nYour password was just changed. If this was not you, reset it again straight away and contact us.\n\n" . abs_url('forgot-password'));
         flash('success', 'Your password has been changed. Please sign in.');
-        redirect($row['role'] === 'admin' ? 'admin/login' : 'login');
+        redirect(in_array($row['role'], ['admin', 'lecturer'], true) ? 'admin/login' : 'login');
     }
 
     /* ------------------------------------------------------------------ my account */

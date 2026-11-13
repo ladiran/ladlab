@@ -30,7 +30,7 @@ trait SecurityActions
         return [
             'user' => $u, 'base' => $this->secBase(), 'enabled' => Auth::hasTwoFactor($u), 'setup' => TwoFactor::setupView($u), 'codes' => $codes,
             'remaining' => Auth::hasTwoFactor($u) ? TwoFactor::remainingCodes((int)$u['id']) : 0, 'isAdmin' => $this->secIsAdmin(),
-            'required' => $this->secIsAdmin() && Settings::get('require_2fa_admin') === '1',
+            'required' => ($this->secIsAdmin() && Settings::get('require_2fa_admin') === '1') || ($u['role'] ?? '') === 'lecturer',
             'events' => Db::all('SELECT * FROM login_events WHERE user_id = ? ORDER BY id DESC LIMIT 10', [$u['id']]),
         ];
     }
@@ -73,6 +73,10 @@ trait SecurityActions
         $u = $this->secGuard();
         if (!rate_ok('totpdisable', 8, 900)) {
             abort(429, 'Too many attempts. Please wait a few minutes and try again.');
+        }
+        if ($u['role'] === 'lecturer') {
+            flash('error', 'Two-step verification is compulsory for lecturers, so it cannot be turned off.');
+            redirect($this->secBase());
         }
         if ($this->secIsAdmin() && Settings::get('require_2fa_admin') === '1') {
             flash('error', 'Two-step verification is required for administrators, so it cannot be turned off. Untick the requirement first.');

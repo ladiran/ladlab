@@ -49,8 +49,9 @@ final class LearnController
             'noindex' => (bool)$c['is_sample'], 'jsonld' => $c['status'] === 'published' ? [Seo::course($c + ['minutes' => $cur['minutes'] ?? 0], Community::ratingStats((int)$c['id']))] : [],
             'c' => $c, 'cur' => $cur, 'u' => $u, 'enrol' => $enrol, 'progress' => $progress, 'first' => $first, 'resume' => $resume,
             'students' => (int)Db::val("SELECT COUNT(*) FROM enrolments WHERE course_id = ? AND status = 'active'", [$c['id']]),
-            'isAdmin' => Auth::isAdmin(),
-            'lockNote' => Auth::isAdmin() ? Learn::lockWindow($c) : null,
+            'isAdmin' => Learn::manages($u, $c),
+            'lockNote' => Learn::manages($u, $c) ? Learn::lockWindow($c) : null,
+            'lecturer' => $c['lecturer_id'] ? Db::one('SELECT id, name, lecturer_bio FROM users WHERE id = ?', [$c['lecturer_id']]) : null,
             'rating' => Community::ratingStats((int)$c['id']),
             'reviews' => Community::reviews((int)$c['id']),
             'announcements' => ($enrol && $enrol['status'] === 'active') || Auth::isAdmin() ? Community::announcements((int)$c['id']) : [],
@@ -176,8 +177,8 @@ final class LearnController
             'files' => $allowed ? Db::all('SELECT * FROM lesson_files WHERE lesson_id = ?', [$l['id']]) : [],
             'done' => $progress ? isset($progress['lessons'][(int)$l['id']]) : false,
             'questions' => $allowed && $active && $u ? Community::lessonQuestions((int)$l['id'], (int)$u['id']) : [],
-            'needsCheck' => $active && $u && $u['role'] !== 'admin' && Learn::needsCheck((int)$u['id'], $l),
-            'moduleLast' => Learn::lastInModule($l),
+            'needsCheck' => $active && $u && !Learn::manages($u, $c) && Learn::needsCheck((int)$u['id'], $l),
+            'moduleLast' => Learn::lastInModule($l), 'manager' => Learn::manages($u, $c),
         ], 'layout/public');
     }
 
@@ -223,14 +224,14 @@ final class LearnController
         }
         $row = null;
         $questions = [];
-        if ($u['role'] !== 'admin') {
+        if (!Learn::manages($u, $c)) {
             $row = Learn::startCheck((int)$u['id'], $l, $bank);
             $questions = Learn::attemptQuestions($row, $bank);
         }
         view('public/lesson_check', [
             'title' => 'Check-up: ' . $l['title'], 'noindex' => true, 'c' => $c, 'l' => $l, 'row' => $row, 'questions' => $questions,
             'res' => $row && $row['answered_at'] !== null ? (json_decode((string)$row['results'], true) ?: []) : [],
-            'isAdmin' => $u['role'] === 'admin', 'bankSize' => (int)Db::val('SELECT COUNT(*) FROM questions WHERE quiz_id = ?', [$bank['id']]),
+            'isAdmin' => Learn::manages($u, $c), 'bankSize' => (int)Db::val('SELECT COUNT(*) FROM questions WHERE quiz_id = ?', [$bank['id']]),
             'nextUrl' => $this->afterLessonUrl($c, $l), 'moduleLast' => Learn::lastInModule($l),
             'meta_desc' => '',
         ]);
@@ -242,7 +243,7 @@ final class LearnController
         csrf_check();
         $self = 'learn/' . $c['slug'] . '/lesson/' . $l['id'] . '/check';
         $bank = Learn::activeBank((int)$l['id']);
-        if (!$bank || $u['role'] === 'admin') {
+        if (!$bank || Learn::manages($u, $c)) {
             redirect($self);
         }
         $row = Learn::startCheck((int)$u['id'], $l, $bank);
@@ -284,7 +285,7 @@ final class LearnController
             flash('info', 'Enrol in the course to open the module summary.');
             redirect('learn/' . $c['slug']);
         }
-        if ($u['role'] !== 'admin' && !Learn::moduleDone((int)$u['id'], (int)$m['id'])) {
+        if (!Learn::manages($u, $c) && !Learn::moduleDone((int)$u['id'], (int)$m['id'])) {
             $open = Learn::firstOpenLesson((int)$u['id'], (int)$m['id']);
             flash('info', 'Finish every lesson in this module to unlock the summary and the module PDF.');
             redirect($open ? 'learn/' . $c['slug'] . '/lesson/' . $open : 'learn/' . $c['slug']);
@@ -298,7 +299,7 @@ final class LearnController
         $next = Learn::nextModule((int)$c['id'], (int)$m['id']);
         $cert = Db::one('SELECT code FROM certificates WHERE user_id = ? AND course_id = ?', [$u['id'], $c['id']]);
         view('public/module_done', [
-            'title' => 'Module complete: ' . $m['title'], 'noindex' => true, 'meta_desc' => '', 'c' => $c, 'm' => $m, 'isAdmin' => $u['role'] === 'admin',
+            'title' => 'Module complete: ' . $m['title'], 'noindex' => true, 'meta_desc' => '', 'c' => $c, 'm' => $m, 'isAdmin' => Learn::manages($u, $c),
             'num' => Learn::moduleNumber((int)$c['id'], (int)$m['id']), 'score' => Learn::moduleScore((int)$u['id'], (int)$m['id']),
             'next' => $next, 'cert' => $cert, 'hasPdf' => $m['pdf_path'] !== '',
         ]);
@@ -342,7 +343,7 @@ final class LearnController
         if (!$l || (int)$l['course_id'] !== (int)$c['id'] || !Learn::hasAccess($u, (int)$c['id'])) {
             abort(403, 'Enrol in this course to track your progress.');
         }
-        if ($u['role'] !== 'admin') {
+        if (!Learn::manages($u, $c)) {
             if (Learn::needsCheck((int)$u['id'], $l)) { // the check-up question must be answered first
                 flash('info', 'Answer the check-up question to finish this lesson.');
                 redirect('learn/' . $c['slug'] . '/lesson/' . $l['id'] . '/check');

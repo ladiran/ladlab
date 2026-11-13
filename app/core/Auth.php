@@ -51,7 +51,7 @@ final class Auth
         }
         if (
             !$row
-            || $now - ($_SESSION['last_seen'] ?? 0) > ($row['role'] === 'admin' ? self::IDLE_ADMIN : self::IDLE_CUSTOMER)
+            || $now - ($_SESSION['last_seen'] ?? 0) > (in_array($row['role'], ['admin', 'lecturer'], true) ? self::IDLE_ADMIN : self::IDLE_CUSTOMER)
             || $now - ($_SESSION['started'] ?? $now) > self::ABSOLUTE
             || (isset($_SESSION['ua']) && !hash_equals((string)$_SESSION['ua'], self::fingerprint()))
             || (isset($row['auth_epoch']) && (int)($_SESSION['epoch'] ?? 0) !== (int)$row['auth_epoch'])
@@ -91,6 +91,24 @@ final class Auth
         return $u !== null && $u['role'] === 'admin';
     }
 
+    public static function isLecturer(): bool
+    {
+        $u = self::user();
+        return $u !== null && $u['role'] === 'lecturer';
+    }
+
+    /** Administrator or lecturer. */
+    public static function isStaff(): bool
+    {
+        return self::isAdmin() || self::isLecturer();
+    }
+
+    /** Where staff land after signing in: the dashboard for the administrator, the course list for a lecturer. */
+    public static function staffHome(): string
+    {
+        return self::isAdmin() ? 'admin' : 'admin/courses';
+    }
+
     public static function hasTwoFactor(?array $user = null): bool
     {
         $user = $user ?? self::user();
@@ -105,7 +123,31 @@ final class Auth
             redirect('admin/login');
         }
         if (!self::isAdmin()) {
+            if (self::isLecturer() && request_path() === '/admin') {
+                redirect('admin/courses'); // a lecturer's home is the course list
+            }
             abort(403, 'This area is for administrators only.');
+        }
+        if (Settings::get('require_2fa_admin') === '1' && !self::hasTwoFactor() && !preg_match('#^/admin/(security|logout)#', request_path())) {
+            flash('error', 'Two-step verification is required for administrators. Please set it up now; it takes two minutes.');
+            redirect('admin/security');
+        }
+    }
+
+    /** Screens shared by administrators and lecturers (courses, student progress). Everything else stays administrator-only. */
+    public static function requireStaff(): void
+    {
+        if (!self::check()) {
+            $_SESSION['intended'] = request_path();
+            redirect('admin/login');
+        }
+        if (!self::isStaff()) {
+            abort(403, 'This area is for administrators and lecturers only.');
+        }
+        if (self::isLecturer() && !self::hasTwoFactor()) {
+            // compulsory and not negotiable: a lecturer without two-step verification cannot open the lecturer area at all
+            flash('error', 'Two-step verification is compulsory for lecturers. Please turn it on now (two minutes with Google or Microsoft Authenticator); your lecturer area opens as soon as it is on.');
+            redirect('account/security');
         }
         if (Settings::get('require_2fa_admin') === '1' && !self::hasTwoFactor() && !preg_match('#^/admin/(security|logout)#', request_path())) {
             flash('error', 'Two-step verification is required for administrators. Please set it up now; it takes two minutes.');
@@ -192,7 +234,7 @@ final class Auth
         $user = Db::one('SELECT * FROM users WHERE email = ?', [$email]);
         // Always verify against something so timing does not reveal whether the account exists.
         $hash = $user['password_hash'] ?? self::hash(bin2hex(random_bytes(8)));
-        $ok = password_verify($password, $hash) && $user !== null && ($requireRole === null || $user['role'] === $requireRole);
+        $ok = password_verify($password, $hash) && $user !== null && ($requireRole === null || $user['role'] === $requireRole || ($requireRole === 'staff' && in_array($user['role'], ['admin', 'lecturer'], true)));
         if (!$ok) {
             Db::run('INSERT INTO login_attempts (ip, identifier) VALUES (?, ?)', [client_ip(), $email]);
             self::event($user['id'] ?? null, $email, false, 'password');

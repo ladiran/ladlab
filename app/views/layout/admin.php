@@ -15,7 +15,7 @@ try {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title><?= e($title ?: 'Admin') ?> | Admin</title>
+<title><?= e($title ?: 'Admin') ?> | <?= e(Auth::isAdmin() ? 'Admin' : Lecturers::label()) ?></title>
 <link rel="icon" href="<?= e(asset('img/favicon.svg')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>?v=<?= (int)@filemtime(ROOT . '/public/assets/css/app.css') ?>">
 </head>
@@ -23,7 +23,7 @@ try {
 <body class="admin"<?= $newsDue ? ' data-news-tick="' . e(url('/news/tick')) . '"' : '' ?>>
 <div class="admin-shell">
   <aside class="admin-side" id="admin-side">
-    <a class="admin-brand" href="<?= e(url('/admin')) ?>"><?= e(setting('site_name')) ?> <small>Admin</small></a>
+    <a class="admin-brand" href="<?= e(url(Auth::isAdmin() ? '/admin' : '/admin/courses')) ?>"><?= e(setting('site_name')) ?> <small><?= e(Auth::isAdmin() ? 'Admin' : Lecturers::label()) ?></small></a>
     <nav>
       <?php foreach (AdminBase::menu() as [$label, $href, $icon]): ?>
         <?php $p = '/' . $href; $active = $p === $path || ($href !== 'admin' && str_starts_with($path, $p . '/')) || ($href === 'admin' && $path === '/admin'); ?>
@@ -41,7 +41,10 @@ try {
     </header>
     <?php $pendingUpdates = []; try { $pendingUpdates = Migrator::pending(); } catch (Throwable) { } ?>
     <?php if ($pendingUpdates && request_path() !== '/admin'): ?><div class="flash flash-error"><strong>A database update is waiting.</strong> New files need it before every feature works. <a href="<?= e(url('/admin')) ?>">Open the dashboard and press “Apply update now”.</a></div><?php endif; ?>
-    <?php if (!Auth::hasTwoFactor($user) && !str_starts_with($path, '/admin/security')): ?><div class="flash flash-error sec-nag"><strong>Your administrator account has no two-step verification.</strong> If someone learns your password they control the whole website, its customers and payments. <a href="<?= e(url('/admin/security')) ?>">Turn it on now (2 minutes)</a></div><?php endif; ?>
+    <?php if (!Auth::hasTwoFactor($user) && !str_starts_with($path, '/admin/security')): ?>
+      <?php if (Auth::isAdmin()): ?><div class="flash flash-error sec-nag"><strong>Your administrator account has no two-step verification.</strong> If someone learns your password they control the whole website, its customers and payments. <a href="<?= e(url('/admin/security')) ?>">Turn it on now (2 minutes)</a></div>
+      <?php else: ?><div class="flash flash-error sec-nag"><strong>Your account has no two-step verification.</strong> You can see your students' details, so please protect it. <a href="<?= e(url('/account/security')) ?>">Turn it on now (2 minutes)</a></div><?php endif; ?>
+    <?php endif; ?>
     <?php $flashes = take_flashes(); foreach ($flashes as $f): ?><div class="flash flash-<?= e($f['type']) ?>"><?= e($f['msg']) ?></div><?php endforeach; ?>
     <div class="admin-content">
       <h1 class="admin-title"><?= e($title) ?></h1>

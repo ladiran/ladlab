@@ -35,7 +35,7 @@
         <input type="password" name="current_password" required placeholder="Your password" autocomplete="current-password" aria-label="Your password"><button class="btn btn-navy" type="submit">Create new codes</button></form>
       <p class="small muted">The old codes stop working.</p></details>
     <details class="sec-details"><summary>Turn off two-step verification</summary>
-      <?php if ($required): ?><p class="muted">Administrators are required to use it, so it cannot be turned off.</p>
+      <?php if ($required): ?><p class="muted"><?= ($user['role'] ?? '') === 'lecturer' ? 'It is compulsory for lecturers, so it cannot be turned off.' : 'Administrators are required to use it, so it cannot be turned off.' ?></p>
       <?php else: ?>
       <p class="small">We advise leaving it on. To turn it off, enter your password and a current code (or a recovery code).</p>
       <form method="post" action="<?= e(url('/' . $base . '/2fa/disable')) ?>" class="form" autocomplete="off"><?= csrf_field() ?>

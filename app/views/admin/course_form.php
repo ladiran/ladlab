@@ -8,6 +8,7 @@ $F = function (string $name, string $type, string $label, string $help = '', arr
     partial('field', ['name' => $name, 'type' => $type, 'label' => $label, 'o' => ['help' => $help] + $o, 'value' => $v($name, $o['default'] ?? '')]);
 };
 $action = $c ? '/admin/courses/' . $c['id'] : '/admin/courses/new';
+$isAdmin = Auth::isAdmin(); // lecturers edit the content only; price, publishing, chat, lock and assignment are the administrator's
 ?>
 <p><a href="<?= e(url('/admin/courses')) ?>">← All courses</a><?= $c ? ' · <a href="' . e(url('/admin/courses/' . $c['id'] . '/curriculum')) . '">Curriculum →</a>' : '' ?></p>
 <?php if ($c && $c['is_sample']): ?><p class="flash flash-info">This is a sample course. Saving it makes it your own and hides the other sample courses.</p><?php endif; ?>
@@ -25,6 +26,7 @@ $action = $c ? '/admin/courses/' . $c['id'] : '/admin/courses/new';
   <div class="field"><label for="f_cover">Cover image (optional)</label>
     <?php if ($c && $c['cover_image']): ?><div class="current-file"><img src="<?= e(upload_url($c['cover_image'])) ?>" alt="" class="thumb"><label class="check"><input type="checkbox" name="remove_cover" value="1"> Remove</label></div><?php endif; ?>
     <input type="file" id="f_cover" name="cover_image" accept="image/jpeg,image/png,image/webp"><small class="hint">A drawn symbol is used when there is no cover.</small></div>
+  <?php if ($isAdmin): ?>
   <div class="form-row">
     <?php $F('price', 'number', 'Price (₦)', '0 makes the course free.', ['min' => 0, 'default' => '0']); ?>
     <?php $F('compare_price', 'number', '“Was” price (₦), optional', 'Shown crossed out.', ['min' => 0]); ?>
@@ -33,10 +35,18 @@ $action = $c ? '/admin/courses/' . $c['id'] : '/admin/courses/new';
     <?php partial('field', ['name' => 'status', 'type' => 'select', 'label' => 'Status', 'o' => ['options' => ['draft' => 'Draft (hidden)', 'published' => 'Published (open for enrolment)', 'soon' => 'Coming soon (teaser only)']], 'value' => $v('status', 'draft')]); ?>
     <?php $F('pass_mark', 'number', 'Default pass mark (%)', '', ['min' => 1, 'max' => 100, 'default' => '60']); ?>
   </div>
+  <div class="field"><label for="f_lect"><?= e(Lecturers::label()) ?> of this course</label>
+    <select id="f_lect" name="lecturer_id"><option value="">(none: the administrator)</option><?php foreach ($lecturers as $lc): ?><option value="<?= (int)$lc['id'] ?>" <?= (string)$v('lecturer_id', '') === (string)$lc['id'] ? 'selected' : '' ?>><?= e($lc['name']) ?> (<?= e($lc['email']) ?>)</option><?php endforeach; ?></select>
+    <small class="hint">The <?= e(mb_strtolower(Lecturers::label())) ?> can edit this course's content and sees only its students. Add people under <a href="<?= e(url('/admin/lecturers')) ?>"><?= e(Lecturers::label()) ?>s</a>.</small></div>
+  <?php else: ?>
+  <p class="flash flash-info small">New courses start as drafts. The administrator sets the price and publishes a course once it is ready. You can change everything about its content here.</p>
+  <?php $F('pass_mark', 'number', 'Default pass mark (%)', '', ['min' => 1, 'max' => 100, 'default' => '60']); ?>
+  <?php endif; ?>
   <div class="form-row">
     <?php partial('field', ['name' => 'certificate_enabled', 'type' => 'checkbox', 'label' => 'Issue a certificate when the student finishes', 'o' => [], 'value' => $old !== null ? (isset($old['certificate_enabled']) ? '1' : '0') : (string)($c['certificate_enabled'] ?? '1')]); ?>
-    <?php partial('field', ['name' => 'is_featured', 'type' => 'checkbox', 'label' => 'Feature this course', 'o' => [], 'value' => $old !== null ? (isset($old['is_featured']) ? '1' : '0') : (string)($c['is_featured'] ?? '0')]); ?>
+    <?php if ($isAdmin): partial('field', ['name' => 'is_featured', 'type' => 'checkbox', 'label' => 'Feature this course', 'o' => [], 'value' => $old !== null ? (isset($old['is_featured']) ? '1' : '0') : (string)($c['is_featured'] ?? '0')]); endif; ?>
   </div>
+  <?php if ($isAdmin): ?>
   <div class="form-row">
     <?php partial('field', ['name' => 'chat_enabled', 'type' => 'checkbox', 'label' => 'Chat room for enrolled students and you', 'o' => [], 'value' => $old !== null ? (isset($old['chat_enabled']) ? '1' : '0') : (string)($c['chat_enabled'] ?? '1')]); ?>
   </div>
@@ -61,6 +71,7 @@ $action = $c ? '/admin/courses/' . $c['id'] : '/admin/courses/new';
     <?php $F('sort_order', 'number', 'Display order', 'Lower first.', ['default' => '0']); ?>
     <?php $F('slug', 'text', 'Web address ending', 'Leave empty to create from the title.', ['max' => 150]); ?>
   </div>
+  <?php endif; ?>
   <div class="form-actions"><button class="btn btn-gold" type="submit">Save course</button><a class="btn btn-ghost-dark" href="<?= e(url('/admin/courses')) ?>">Cancel</a></div>
 </form>
 <?php clear_old(); ?>

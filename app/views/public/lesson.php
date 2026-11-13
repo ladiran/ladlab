@@ -59,9 +59,9 @@ $total = $progress ? $progress['total'] : 0;
 
       <nav class="lesson-nav">
         <?php if ($prev): ?><a class="btn btn-ghost" href="<?= e(url($base . '/lesson/' . $prev)) ?>">← Previous</a><?php else: ?><span></span><?php endif; ?>
-        <?php if ($active && $u && $u['role'] !== 'admin' && $needsCheck): ?>
+        <?php if ($active && $u && !$manager && $needsCheck): ?>
           <a class="btn btn-gold" href="<?= e(url($base . '/lesson/' . $l['id'] . '/check')) ?>">Answer a quick question to continue →</a>
-        <?php elseif ($active && $u && $u['role'] !== 'admin'): ?>
+        <?php elseif ($active && $u && !$manager): ?>
           <form method="post" action="<?= e(url($base . '/lesson/' . $l['id'] . '/complete')) ?>"><?= csrf_field() ?>
             <button class="btn btn-gold" type="submit"><?= $done ? '✔ Completed: ' : 'Mark complete and ' ?><?= $moduleLast ? 'finish the module →' : 'continue →' ?></button>
           </form>

@@ -673,3 +673,10 @@ a.course-card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(11,31,
 .chat-form{border-top:1px solid #d6dde6;padding:10px;background:#fff}
 .chat-form textarea{width:100%;resize:vertical;min-height:52px}
 .chat-send{display:flex;gap:12px;align-items:center;margin-top:6px}
+
+/* Phase 9i: lecturers and student progress */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:12px 0 18px}
+.stat{padding:14px 16px;text-align:left}
+.stat .stat-n{margin:0;font:700 1.7rem var(--font-head);color:var(--sky)}
+.stat p.small{margin:2px 0 0}
+.lecturer-line{margin:6px 0 0;opacity:.95}

@@ -10,7 +10,7 @@ final class TwoFactorController
         if (!$p) {
             redirect('login');
         }
-        $admin = $p['role'] === 'admin';
+        $admin = in_array($p['role'], ['admin', 'staff'], true);
         view('public/two_factor', ['title' => 'Two-step verification', 'meta_desc' => '', 'admin' => $admin, 'recovery' => isset($_GET['recovery']), 'email' => $p['user']['email']], $admin ? 'layout/bare' : 'layout/public');
     }
 
@@ -23,7 +23,7 @@ final class TwoFactorController
             redirect('login');
         }
         $u = $p['user'];
-        $admin = $p['role'] === 'admin';
+        $admin = in_array($p['role'], ['admin', 'staff'], true);
         $back = $admin ? 'admin/login' : 'login';
         $key = '2fa:' . strtolower($u['email']);
         $failsAcct = (int)Db::val('SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)', [$key]);
@@ -51,7 +51,7 @@ final class TwoFactorController
         $intended = (string)($_SESSION['intended'] ?? '');
         unset($_SESSION['intended']);
         if ($admin) {
-            redirect(preg_match('#^/admin[A-Za-z0-9/_.\-]*$#', $intended) ? $intended : '/admin');
+            redirect(preg_match('#^/admin[A-Za-z0-9/_.\-]*$#', $intended) ? $intended : '/' . ($u['role'] === 'admin' ? 'admin' : 'admin/courses'));
         }
         redirect(AccountController::safeNext($intended, '/account'));
     }

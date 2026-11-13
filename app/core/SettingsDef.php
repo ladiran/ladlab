@@ -66,13 +66,14 @@ final class SettingsDef
                 ['speaker_lead_time', 'text', 'Notice needed', 'Please contact me at least 4 weeks before the event.', ''],
             ]],
             'security' => ['label' => 'Security', 'icon' => '🔐', 'fields' => [
-                ['require_2fa_admin', 'checkbox', 'Require two-step verification for administrators', '0', 'When ticked, an administrator without it can only open the security page until it is set up.'],
+                ['require_2fa_admin', 'checkbox', 'Require two-step verification for administrators and lecturers', '0', 'When ticked, an administrator or lecturer without it can only open the security page until it is set up.'],
                 ['security_alert_emails', 'checkbox', 'Email people about security events (new device sign-in, password or 2FA changes)', '1', ''],
             ]],
             'modules' => ['label' => 'Site sections', 'icon' => '🧩', 'fields' => [
                 ['enable_learn', 'checkbox', 'Learn (courses) is live', '0', 'Switched on automatically when the courses phase is installed.'],
                 ['enable_shop', 'checkbox', 'Shop is live', '0', ''],
                 ['enable_news', 'checkbox', 'News is live', '0', ''],
+                ['lecturer_label', 'text', 'What to call the people who teach courses', 'Lecturer', 'For example Lecturer, Instructor, Tutor or Teacher. Shown on course pages and in the admin area.'],
             ]],
             'news' => ['label' => 'News rules', 'icon' => '📰', 'fields' => [
                 ['news_paused', 'checkbox', 'PAUSE ALL NEWS (kill-switch)', '0', 'Tick to stop fetching and hide the whole News section and ticker until you untick it.'],

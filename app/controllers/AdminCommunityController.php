@@ -4,14 +4,26 @@ declare(strict_types=1);
 /** Course announcements, student questions and reviews. */
 final class AdminCommunityController extends AdminBase
 {
+    /** Lecturers use announcements and student questions, only for their own courses. Reviews stay with the administrator. */
+    protected function staffAllowed(): bool
+    {
+        return true;
+    }
+
+    private function ownCourse(int $courseId): array
+    {
+        $c = Learn::courseById($courseId);
+        if (!$c || !Lecturers::canManage(Auth::user(), $c)) {
+            abort(404);
+        }
+        return $c;
+    }
+
     /* ------------------------------------------------------------------ announcements */
 
     public function announcements(string $id): void
     {
-        $c = Learn::courseById((int)$id);
-        if (!$c) {
-            abort(404);
-        }
+        $c = $this->ownCourse((int)$id);
         $this->page('admin/announcements', [
             'title' => 'Announcements: ' . $c['title'], 'tab' => 'courses', 'c' => $c,
             'rows' => Db::all('SELECT * FROM course_announcements WHERE course_id = ? ORDER BY id DESC', [$c['id']]),
@@ -22,10 +34,7 @@ final class AdminCommunityController extends AdminBase
     public function announcementSave(string $id): void
     {
         $this->verify();
-        $c = Learn::courseById((int)$id);
-        if (!$c) {
-            abort(404);
-        }
+        $c = $this->ownCourse((int)$id);
         $title = mb_substr(trim((string)($_POST['title'] ?? '')), 0, 200);
         $body = mb_substr(trim((string)($_POST['body'] ?? '')), 0, 10000);
         if ($title === '' || $body === '') {
@@ -49,6 +58,7 @@ final class AdminCommunityController extends AdminBase
         $this->verify();
         $a = Db::one('SELECT * FROM course_announcements WHERE id = ?', [(int)$aid]);
         if ($a) {
+            $this->ownCourse((int)$a['course_id']);
             Db::delete('course_announcements', 'id = ?', [$a['id']]);
             flash('success', 'Announcement deleted.');
         }
@@ -60,11 +70,12 @@ final class AdminCommunityController extends AdminBase
     public function questions(): void
     {
         $st = in_array($_GET['status'] ?? '', ['open', 'answered', 'hidden'], true) ? $_GET['status'] : 'open';
+        [$scope, $scopeParams] = Lecturers::scope(Auth::user(), 'c');
         $rows = Db::all(
-            'SELECT q.*, u.name, u.email, l.title AS lesson_title, c.title AS course_title, c.slug AS course_slug
+            "SELECT q.*, u.name, u.email, l.title AS lesson_title, c.title AS course_title, c.slug AS course_slug
              FROM lesson_questions q JOIN users u ON u.id = q.user_id JOIN lessons l ON l.id = q.lesson_id JOIN courses c ON c.id = q.course_id
-             WHERE q.status = ? ORDER BY q.id DESC LIMIT 200',
-            [$st]
+             WHERE q.status = ? AND $scope ORDER BY q.id DESC LIMIT 200",
+            array_merge([$st], $scopeParams)
         );
         $this->page('admin/qa', ['title' => 'Student questions', 'tab' => 'qa', 'rows' => $rows, 'status' => $st]);
     }
@@ -76,6 +87,7 @@ final class AdminCommunityController extends AdminBase
         if (!$q) {
             abort(404);
         }
+        $this->ownCourse((int)$q['course_id']);
         $act = (string)($_POST['action'] ?? 'answer');
         if ($act === 'hide') {
             Db::update('lesson_questions', ['status' => 'hidden'], 'id = ?', [$q['id']]);
@@ -101,6 +113,7 @@ final class AdminCommunityController extends AdminBase
 
     public function reviews(): void
     {
+        Auth::requireAdmin();
         $st = in_array($_GET['status'] ?? '', ['pending', 'published', 'hidden'], true) ? $_GET['status'] : 'pending';
         $rows = Db::all(
             'SELECT r.*, u.name, c.title AS course_title FROM course_reviews r JOIN users u ON u.id = r.user_id JOIN courses c ON c.id = r.course_id WHERE r.status = ? ORDER BY r.id DESC LIMIT 200',
@@ -111,6 +124,7 @@ final class AdminCommunityController extends AdminBase
 
     public function reviewAction(string $rid): void
     {
+        Auth::requireAdmin();
         $this->verify();
         $r = Db::one('SELECT * FROM course_reviews WHERE id = ?', [(int)$rid]);
         if ($r) {

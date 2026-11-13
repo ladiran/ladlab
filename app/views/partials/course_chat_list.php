@@ -1,7 +1,7 @@
 <?php
 /** The messages of a course chat. Expects $c (course), $viewer (user), $messages (oldest first), $mutedIds. */
 $chatBase = '/learn/' . $c['slug'] . '/chat';
-$isAdminViewer = $viewer['role'] === 'admin';
+$isAdminViewer = CourseChat::isModerator($viewer, $c);
 $today = date('Y-m-d');
 ?>
 <?php if (!$messages): ?>
@@ -9,15 +9,15 @@ $today = date('Y-m-d');
 <?php endif; ?>
 <?php foreach ($messages as $m):
   $mine = (int)$m['user_id'] === (int)$viewer['id'];
-  $lect = ($m['role'] ?? '') === 'admin';
+  $lect = ($m['role'] ?? '') === 'admin' || ((int)($c['lecturer_id'] ?? 0) > 0 && (int)$m['user_id'] === (int)$c['lecturer_id']);
   $ts = strtotime((string)$m['created_at']);
   $when = $ts ? (date('Y-m-d', $ts) === $today ? date('g:i A', $ts) : date('j M, g:i A', $ts)) : '';
   $isMuted = in_array((int)$m['user_id'], $mutedIds, true);
 ?>
   <div class="chat-msg<?= $mine ? ' mine' : '' ?><?= $lect ? ' lecturer' : '' ?>" id="m<?= (int)$m['id'] ?>">
     <div class="chat-meta">
-      <strong><?= e(CourseChat::label($m)) ?></strong>
-      <?php if ($lect): ?><span class="tag tag-verified">Lecturer</span><?php endif; ?>
+      <strong><?= e(CourseChat::label($m, $c)) ?></strong>
+      <?php if ($lect): ?><span class="tag tag-verified"><?= e(Lecturers::label()) ?></span><?php endif; ?>
       <span class="muted small"><?= e($when) ?></span>
       <?php if ($mine || $isAdminViewer): ?>
         <form method="post" action="<?= e(url($chatBase . '/' . (int)$m['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this message?"><?= csrf_field() ?><button class="chat-act" type="submit" title="Delete this message" aria-label="Delete this message">🗑</button></form>

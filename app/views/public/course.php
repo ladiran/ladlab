@@ -12,6 +12,7 @@ $loggedIn = (bool)$u;
       <p class="eyebrow"><?= e($c['level']) ?> · <?= e($c['subject']) ?></p>
       <h1><?= e($c['title']) ?><?php if ($c['is_sample']): ?> <span class="badge-sample">sample</span><?php endif; ?></h1>
       <p class="lead"><?= e($c['subtitle']) ?></p>
+      <?php if (!empty($lecturer)): ?><p class="lecturer-line">Taught by <strong><?= e($lecturer['name']) ?></strong><?= $lecturer['lecturer_bio'] !== '' ? ' <span class="muted">· ' . e($lecturer['lecturer_bio']) . '</span>' : '' ?></p><?php endif; ?>
       <?php if (!$soon): ?>
       <p class="course-facts"><span>📚 <?= (int)$cur['lessons'] ?> lessons</span><span>📝 <?= (int)$cur['quizzes'] ?> quizzes</span><?= $hours ? '<span>🎬 ' . e((string)$hours) . ' h video</span>' : '' ?><span>🏅 Certificate</span><?= $students > 4 ? '<span>👥 ' . (int)$students . ' students</span>' : '' ?></p>
       <?php endif; ?>
@@ -41,7 +42,7 @@ $loggedIn = (bool)$u;
         <?php if ($price > 0): ?><p class="small muted center">Pay by bank transfer. Access starts when we confirm your payment.</p><?php endif; ?>
         <?php if ($first): ?><p class="center"><a href="<?= e(url('/learn/' . $c['slug'] . '/lesson/' . $first)) ?>">▶ Try the free preview lesson</a></p><?php endif; ?>
       <?php endif; ?>
-      <?php if ($isAdmin && !$soon): ?><p class="small center"><a href="<?= e(url('/admin/courses/' . $c['id'] . '/curriculum')) ?>">✎ Edit this course (admin)</a> · <a href="<?= e(url('/learn/' . $c['slug'] . '/chat')) ?>">💬 Chat</a></p><?php endif; ?>
+      <?php if ($isAdmin && !$soon): ?><p class="small center"><a href="<?= e(url('/admin/courses/' . $c['id'] . '/curriculum')) ?>">✎ Edit this course</a> · <a href="<?= e(url('/learn/' . $c['slug'] . '/chat')) ?>">💬 Chat</a></p><?php endif; ?>
     </aside>
   </div>
 </section>

@@ -92,15 +92,19 @@ final class Learn
         exit;
     }
 
-    /** Finds the course for a visitor: 404 for unknown or hidden sample courses, the locked page during a lockdown (not for administrators). */
+    /** Finds the course for a visitor: 404 for unknown, draft or hidden sample courses, the locked page during a lockdown. Administrators and the course's lecturer are exempt from all of these. */
     public static function accessibleCourse(string $slug): array
     {
-        $c = self::course($slug);
+        $c = Db::one('SELECT * FROM courses WHERE slug = ?', [$slug]);
         if (!$c) {
             abort(404);
         }
+        $manager = Lecturers::canManage(Auth::check() ? Auth::user() : null, $c); // administrator, or this course's lecturer
+        if (!$manager && !in_array($c['status'], ['published', 'soon'], true)) {
+            abort(404); // drafts are visible only to those who manage them
+        }
         // sample courses disappear once a real one is published
-        if ($c['status'] === 'published' && (int)$c['is_sample'] !== self::sampleFlag() && !Auth::isAdmin()) {
+        if (!$manager && $c['status'] === 'published' && (int)$c['is_sample'] !== self::sampleFlag()) {
             abort(404);
         }
         self::lockGate($c);
@@ -110,7 +114,7 @@ final class Learn
     /** Shows the locked page instead of continuing, unless the course is open or the visitor is an administrator. */
     public static function lockGate(array $course): void
     {
-        if (!Auth::isAdmin() && ($lock = self::lock($course))) {
+        if (!Lecturers::canManage(Auth::check() ? Auth::user() : null, $course) && ($lock = self::lock($course))) {
             self::lockedPage($course, $lock);
         }
     }
@@ -151,6 +155,12 @@ final class Learn
         );
     }
 
+    /** Administrator or the course's lecturer: opens everything, nothing is recorded as study progress. */
+    public static function manages(?array $user, array|int $course): bool
+    {
+        return Lecturers::canManage($user, $course);
+    }
+
     public static function lesson(int $id): ?array
     {
         return Db::one('SELECT * FROM lessons WHERE id = ?', [$id]);
@@ -170,6 +180,9 @@ final class Learn
         }
         if ($user['role'] === 'admin') {
             return true; // administrators can preview everything
+        }
+        if (Lecturers::canManage($user, $courseId)) {
+            return true; // the lecturer of the course can open it like a student, without enrolling
         }
         $e = self::enrolment((int)$user['id'], $courseId);
         return $e !== null && $e['status'] === 'active';

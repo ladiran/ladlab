@@ -99,7 +99,7 @@ $cartCount = module_enabled('shop') ? Cart::count() : 0;
       <?php if (module_enabled('shop')): ?><a href="<?= e(url('/cart')) ?>">🛒 Cart<?php if ($cartCount): ?> <span class="count"><?= (int)$cartCount ?></span><?php endif; ?></a><?php endif; ?>
       <?php if ($me): ?>
         <a href="<?= e(url('/account')) ?>">👤 <?= e(explode(' ', trim($me['name']))[0]) ?></a>
-        <?php if ($me['role'] === 'admin'): ?><a href="<?= e(url('/admin')) ?>">Admin</a><?php endif; ?>
+        <?php if ($me['role'] === 'admin'): ?><a href="<?= e(url('/admin')) ?>">Admin</a><?php elseif ($me['role'] === 'lecturer'): ?><a href="<?= e(url('/admin/courses')) ?>"><?= e(Lecturers::label()) ?> area</a><?php endif; ?>
         <form method="post" action="<?= e(url('/logout')) ?>" class="inline"><?= csrf_field() ?><button type="submit" class="utility-btn">Logout</button></form>
       <?php else: ?>
         <a href="<?= e(url('/login')) ?>">Login</a>

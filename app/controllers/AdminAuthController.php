@@ -5,8 +5,8 @@ final class AdminAuthController
 {
     public function loginForm(): void
     {
-        if (Auth::check() && Auth::isAdmin()) {
-            redirect('admin');
+        if (Auth::check() && Auth::isStaff()) {
+            redirect(Auth::staffHome());
         }
         view('admin/login', ['title' => 'Admin sign in', 'meta_desc' => ''], 'layout/bare');
     }
@@ -21,7 +21,7 @@ final class AdminAuthController
             flash('error', 'Too many failed attempts. Please wait 15 minutes and try again.');
             redirect('admin/login');
         }
-        $r = Auth::attempt($email, $password, 'admin');
+        $r = Auth::attempt($email, $password, 'staff');
         if ($r === false) {
             flash('error', 'Incorrect email or password.');
             redirect('admin/login');
@@ -29,9 +29,9 @@ final class AdminAuthController
         if ($r === '2fa') {
             redirect('login/2fa');
         }
-        $intended = $_SESSION['intended'] ?? '/admin';
+        $intended = $_SESSION['intended'] ?? '';
         unset($_SESSION['intended']);
-        redirect(preg_match('#^/admin[A-Za-z0-9/_.\-]*$#', $intended) ? $intended : '/admin');
+        redirect(preg_match('#^/admin[A-Za-z0-9/_.\-]*$#', $intended) ? $intended : '/' . Auth::staffHome());
     }
 
     public function logout(): void

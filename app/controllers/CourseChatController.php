@@ -43,7 +43,7 @@ final class CourseChatController
         view('public/course_chat', [
             'title' => 'Chat: ' . $c['title'], 'noindex' => true, 'meta_desc' => '', 'c' => $c, 'u' => $u,
             'list' => CourseChat::listHtml($c, $u, $messages), 'sig' => CourseChat::signature($messages),
-            'isAdmin' => $u['role'] === 'admin', 'muted' => $u['role'] !== 'admin' && CourseChat::muted((int)$u['id'], (int)$c['id']),
+            'isAdmin' => CourseChat::isModerator($u, $c), 'muted' => !CourseChat::isModerator($u, $c) && CourseChat::muted((int)$u['id'], (int)$c['id']),
             'people' => (int)Db::val("SELECT COUNT(*) FROM enrolments WHERE course_id = ? AND status = 'active'", [$c['id']]),
         ]);
     }
@@ -67,7 +67,7 @@ final class CourseChatController
             flash('error', $msg);
             redirect('learn/' . $c['slug'] . '/chat');
         };
-        if ($u['role'] !== 'admin' && CourseChat::muted((int)$u['id'], (int)$c['id'])) {
+        if (!CourseChat::isModerator($u, $c) && CourseChat::muted((int)$u['id'], (int)$c['id'])) {
             $fail('The lecturer has switched off your messages in this chat.');
         }
         $body = trim(preg_replace("/\r\n?/", "\n", (string)($_POST['message'] ?? '')));
@@ -97,7 +97,7 @@ final class CourseChatController
         [$c, $u] = $this->context($slug);
         csrf_check();
         $m = Db::one('SELECT * FROM course_chat WHERE id = ? AND course_id = ?', [(int)$id, $c['id']]);
-        if ($m && ($u['role'] === 'admin' || (int)$m['user_id'] === (int)$u['id'])) {
+        if ($m && (CourseChat::isModerator($u, $c) || (int)$m['user_id'] === (int)$u['id'])) {
             Db::delete('course_chat', 'id = ?', [$m['id']]);
             flash('success', 'Message deleted.');
         }
@@ -109,7 +109,7 @@ final class CourseChatController
     {
         [$c, $u] = $this->context($slug);
         csrf_check();
-        if ($u['role'] !== 'admin') {
+        if (!CourseChat::isModerator($u, $c)) {
             abort(403);
         }
         $on = ($_POST['mute'] ?? '1') === '1' ? 1 : 0;

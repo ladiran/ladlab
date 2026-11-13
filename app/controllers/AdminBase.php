@@ -6,7 +6,17 @@ abstract class AdminBase
 {
     public function __construct()
     {
-        Auth::requireAdmin();
+        if ($this->staffAllowed()) {
+            Auth::requireStaff();
+        } else {
+            Auth::requireAdmin();
+        }
+    }
+
+    /** Controllers that lecturers may use (always limited to their own courses) override this and return true. */
+    protected function staffAllowed(): bool
+    {
+        return false;
     }
 
     protected function page(string $template, array $vars = []): void
@@ -22,6 +32,15 @@ abstract class AdminBase
     /** Menu structure shared by the admin layout. */
     public static function menu(): array
     {
+        if (!Auth::isAdmin()) { // a lecturer sees only their own area
+            return [
+                ['My courses', 'admin/courses', '🎓'],
+                ['Student progress', 'admin/progress', '📈'],
+                ['Student questions', 'admin/qa', '🙋'],
+                ['My account', 'account', '🔑'],
+                ['Security', 'account/security', '🔐'],
+            ];
+        }
         $g = SettingsDef::groups();
         return [
             ['Dashboard', 'admin', '🏠'],
@@ -49,6 +68,8 @@ abstract class AdminBase
             ['Coupons', 'admin/coupons', '🎟'],
             ['Customers', 'admin/customers', '👥'],
             ['Courses', 'admin/courses', '🎓'],
+            ['Lecturers', 'admin/lecturers', '👩‍🏫'],
+            ['Student progress', 'admin/progress', '📈'],
             ['Student questions', 'admin/qa', '🙋'],
             ['Course reviews', 'admin/reviews', '⭐'],
             ['Students & payments', 'admin/enrolments', '🧑‍🎓'],

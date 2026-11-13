@@ -4,13 +4,32 @@ declare(strict_types=1);
 /** Courses, curriculum (modules, lessons), quizzes and questions. */
 final class AdminCoursesController extends AdminBase
 {
-    private function course(string $id): array
+    /** Lecturers may use this controller, but only for the courses assigned to them. */
+    protected function staffAllowed(): bool
     {
-        $c = Learn::courseById((int)$id);
-        if (!$c) {
+        return true;
+    }
+
+    /** The course, or 404 when it does not exist or is not this person's to manage (administrators manage every course). */
+    private function own(int $courseId): array
+    {
+        $c = Learn::courseById($courseId);
+        if (!$c || !Lecturers::canManage(Auth::user(), $c)) {
             abort(404);
         }
         return $c;
+    }
+
+    private function course(string $id): array
+    {
+        return $this->own((int)$id);
+    }
+
+    /** Live preview of Markdown in the editors (shared by administrators and lecturers). */
+    public function markdownPreview(): void
+    {
+        $this->verify();
+        json_out(['html' => md((string)($_POST['text'] ?? ''))]);
     }
 
     private function in(string $k): string
@@ -46,23 +65,27 @@ final class AdminCoursesController extends AdminBase
 
     public function index(): void
     {
-        $this->page('admin/courses', ['title' => 'Courses', 'tab' => 'courses', 'rows' => Db::all(
+        [$scope, $scopeParams] = Lecturers::scope(Auth::user(), 'c');
+        $this->page('admin/courses', ['title' => Auth::isAdmin() ? 'Courses' : 'My courses', 'tab' => 'courses', 'rows' => Db::all(
             "SELECT c.*, (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id) AS lessons, (SELECT COUNT(*) FROM quizzes q WHERE q.course_id = c.id AND q.kind <> 'check') AS quizzes,
                     (SELECT COUNT(*) FROM enrolments e WHERE e.course_id = c.id AND e.status = 'active') AS students,
-                    (SELECT COUNT(*) FROM enrolments e WHERE e.course_id = c.id AND e.status = 'awaiting_payment') AS pending
-             FROM courses c ORDER BY c.status = 'published' DESC, c.sort_order, c.id"
+                    (SELECT COUNT(*) FROM enrolments e WHERE e.course_id = c.id AND e.status = 'awaiting_payment') AS pending,
+                    (SELECT u.name FROM users u WHERE u.id = c.lecturer_id) AS lecturer_name
+             FROM courses c WHERE $scope ORDER BY c.status = 'published' DESC, c.sort_order, c.id",
+            $scopeParams
         )]);
     }
 
     public function form(?string $id = null): void
     {
         $c = $id !== null ? $this->course($id) : null;
-        $this->page('admin/course_form', ['title' => $c ? 'Edit course: ' . $c['title'] : 'Add a course', 'tab' => 'courses', 'c' => $c]);
+        $this->page('admin/course_form', ['title' => $c ? 'Edit course: ' . $c['title'] : 'Add a course', 'tab' => 'courses', 'c' => $c, 'lecturers' => Auth::isAdmin() ? Lecturers::all() : []]);
     }
 
     public function save(?string $id = null): void
     {
         $this->verify();
+        $staff = !Auth::isAdmin(); // a lecturer
         $existing = $id !== null ? $this->course($id) : null;
         $d = [
             'title' => mb_substr($this->in('title'), 0, 200), 'subtitle' => mb_substr($this->in('subtitle'), 0, 250),
@@ -74,7 +97,9 @@ final class AdminCoursesController extends AdminBase
             'chat_enabled' => isset($_POST['chat_enabled']) ? 1 : 0,
         ];
         $errors = [];
-        [$d['lock_from'], $d['lock_until']] = $this->lockFromPost($existing, $errors);
+        if (!$staff) {
+            [$d['lock_from'], $d['lock_until']] = $this->lockFromPost($existing, $errors);
+        }
         if ($d['title'] === '') {
             $errors[] = 'Please enter the course title.';
         }
@@ -86,7 +111,7 @@ final class AdminCoursesController extends AdminBase
             $errors[] = 'The “was” price must be a whole number, or empty.';
         }
         $d['compare_price'] = $this->in('compare_price') !== '' ? (int)$this->in('compare_price') : null;
-        $slug = slugify($this->in('slug') !== '' ? $this->in('slug') : $d['title']);
+        $slug = slugify(!$staff && $this->in('slug') !== '' ? $this->in('slug') : $d['title']); // a lecturer's course address always comes from its title
         $base = $slug;
         for ($n = 2; Db::val('SELECT 1 FROM courses WHERE slug = ? AND id <> ?', [$slug, $existing['id'] ?? 0]); $n++) {
             $slug = $base . '-' . $n;
@@ -100,6 +125,13 @@ final class AdminCoursesController extends AdminBase
                 $errors[] = 'Cover image: ' . $e->getMessage();
             }
         }
+        $lecturerId = null;
+        if (!$staff && $this->in('lecturer_id') !== '') {
+            $lecturerId = (int)$this->in('lecturer_id');
+            if (!Db::val("SELECT 1 FROM users WHERE id = ? AND role = 'lecturer'", [$lecturerId])) {
+                $errors[] = 'Please choose one of the existing ' . mb_strtolower(Lecturers::label()) . 's.';
+            }
+        }
         if ($errors) {
             if ($cover) {
                 Upload::remove($cover);
@@ -109,6 +141,21 @@ final class AdminCoursesController extends AdminBase
             }
             remember_input($_POST);
             redirect($existing ? 'admin/courses/' . $existing['id'] : 'admin/courses/new');
+        }
+        if ($staff) {
+            // content only: price, publishing, featuring, order, address, chat switch, lockdown and assignment belong to the administrator
+            foreach (['status', 'is_featured', 'sort_order', 'price', 'compare_price', 'chat_enabled'] as $k) {
+                unset($d[$k]);
+            }
+            if ($existing) {
+                unset($d['slug']);
+            } else {
+                $d['status'] = 'draft';
+                $d['price'] = 0;
+                $d['lecturer_id'] = (int)Auth::user()['id'];
+            }
+        } else {
+            $d['lecturer_id'] = $lecturerId;
         }
         if ($existing) {
             if ($cover) {
@@ -125,13 +172,16 @@ final class AdminCoursesController extends AdminBase
             $cid = Db::insert('courses', $d + ['cover_image' => $cover ?? '', 'is_sample' => 0]);
         }
         Audit::log($existing ? 'course_update' : 'course_create', $d['title']);
-        if ($d['lock_until'] !== null && (!$existing || $existing['lock_until'] !== $d['lock_until'] || $existing['lock_from'] !== $d['lock_from'])) {
+        if ($staff && !$existing) {
+            Community::notifyOwner('New course draft by ' . Auth::user()['name'], Auth::user()['name'] . ' started a new course "' . $d['title'] . "\".\n\nIt is a draft with price 0. Review it, set the price and publish it here: " . abs_url('admin/courses/' . $cid));
+        }
+        if (!$staff && $d['lock_until'] !== null && (!$existing || $existing['lock_until'] !== $d['lock_until'] || $existing['lock_from'] !== $d['lock_from'])) {
             Audit::log('course_lock', $d['title'] . ' until ' . $d['lock_until']);
-        } elseif ($existing && $existing['lock_until'] !== null && $d['lock_until'] === null) {
+        } elseif (!$staff && $existing && $existing['lock_until'] !== null && $d['lock_until'] === null) {
             Audit::log('course_unlock', $d['title']);
         }
         clear_old();
-        flash('success', $existing ? 'Course saved.' : 'Course created. Now build the curriculum: add modules and lessons.');
+        flash('success', $existing ? 'Course saved.' : 'Course created' . ($staff ? ' as a draft; the administrator will review it, set the price and publish it' : '') . '. Now build the curriculum: add modules and lessons.');
         redirect($existing ? 'admin/courses/' . $cid : 'admin/courses/' . $cid . '/curriculum');
     }
 
@@ -191,6 +241,9 @@ final class AdminCoursesController extends AdminBase
     public function delete(string $id): void
     {
         $this->verify();
+        if (!Auth::isAdmin()) {
+            abort(403, 'Only the administrator can delete a course.');
+        }
         $c = $this->course($id);
         foreach (Db::all('SELECT video_ref FROM lessons WHERE course_id = ? AND video_type = ?', [$c['id'], 'file']) as $l) {
             Upload::removePrivate($l['video_ref']);
@@ -238,6 +291,7 @@ final class AdminCoursesController extends AdminBase
         if (!$m) {
             abort(404);
         }
+        $this->own((int)$m['course_id']);
         $title = mb_substr($this->in('title'), 0, 200);
         if ($title !== '') {
             Db::update('course_modules', ['title' => $title, 'summary' => mb_substr($this->in('summary'), 0, 400)], 'id = ?', [$m['id']]);
@@ -251,6 +305,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $m = Db::one('SELECT * FROM course_modules WHERE id = ?', [(int)$mid]);
         if ($m) {
+            $this->own((int)$m['course_id']);
             $this->move('course_modules', 'course_id', (int)$m['course_id'], (int)$m['id'], $this->dir());
         }
         redirect('admin/courses/' . ($m['course_id'] ?? 0) . '/curriculum');
@@ -261,6 +316,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $m = Db::one('SELECT * FROM course_modules WHERE id = ?', [(int)$mid]);
         if ($m) {
+            $this->own((int)$m['course_id']);
             Upload::removePrivate($m['pdf_path']);
             foreach (Db::all('SELECT id, video_type, video_ref FROM lessons WHERE module_id = ?', [$m['id']]) as $l) {
                 $this->cleanLessonFiles($l);
@@ -416,6 +472,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $l = Learn::lesson((int)$lid);
         if ($l) {
+            $this->own((int)$l['course_id']);
             $this->move('lessons', 'module_id', (int)$l['module_id'], (int)$l['id'], $this->dir());
         }
         redirect('admin/courses/' . ($l['course_id'] ?? 0) . '/curriculum');
@@ -426,6 +483,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $l = Learn::lesson((int)$lid);
         if ($l) {
+            $this->own((int)$l['course_id']);
             $this->cleanLessonFiles($l);
             Db::delete('lessons', 'id = ?', [$l['id']]);
             flash('success', 'Lesson deleted.');
@@ -441,6 +499,7 @@ final class AdminCoursesController extends AdminBase
         if (!$l) {
             abort(404);
         }
+        $this->own((int)$l['course_id']);
         $b = Learn::ensureBank($l);
         redirect('admin/quizzes/' . $b['id']);
     }
@@ -453,6 +512,7 @@ final class AdminCoursesController extends AdminBase
         if (!$m) {
             abort(404);
         }
+        $this->own((int)$m['course_id']);
         $back = 'admin/courses/' . $m['course_id'] . '/curriculum';
         if (!empty($_POST['remove_pdf'])) {
             Upload::removePrivate($m['pdf_path']);
@@ -557,6 +617,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $q = Learn::quiz((int)$qid);
         if ($q) {
+            $this->own((int)$q['course_id']);
             Db::delete('quizzes', 'id = ?', [$q['id']]);
             flash('success', $q['kind'] === 'check' ? 'Question bank deleted.' : 'Quiz deleted.');
             if ($q['kind'] === 'check' && $q['lesson_id']) {
@@ -581,6 +642,7 @@ final class AdminCoursesController extends AdminBase
         if (!$quiz) {
             abort(404);
         }
+        $this->own((int)$quiz['course_id']);
         $this->page('admin/question_form', ['title' => $question ? 'Edit question' : 'Add a question', 'tab' => 'courses', 'quiz' => $quiz, 'qn' => $question]);
     }
 
@@ -595,6 +657,7 @@ final class AdminCoursesController extends AdminBase
         if (!$quiz) {
             abort(404);
         }
+        $this->own((int)$quiz['course_id']);
         $type = isset(Learn::Q_TYPES[$this->in('type')]) ? $this->in('type') : 'mcq';
         $prompt = mb_substr($this->in('prompt'), 0, 5000);
         $errors = [];
@@ -671,11 +734,21 @@ final class AdminCoursesController extends AdminBase
     public function questionEdit(string $id): void { $this->questionForm('0', $id); }
     public function questionUpdate(string $id): void { $this->questionSave('0', $id); }
 
+    private function ownQuestion(array $q): void
+    {
+        $quiz = Learn::quiz((int)$q['quiz_id']);
+        if (!$quiz) {
+            abort(404);
+        }
+        $this->own((int)$quiz['course_id']);
+    }
+
     public function questionMove(string $id): void
     {
         $this->verify();
         $q = Db::one('SELECT * FROM questions WHERE id = ?', [(int)$id]);
         if ($q) {
+            $this->ownQuestion($q);
             $this->move('questions', 'quiz_id', (int)$q['quiz_id'], (int)$q['id'], $this->dir());
         }
         redirect('admin/quizzes/' . ($q['quiz_id'] ?? 0));
@@ -686,6 +759,7 @@ final class AdminCoursesController extends AdminBase
         $this->verify();
         $q = Db::one('SELECT * FROM questions WHERE id = ?', [(int)$id]);
         if ($q) {
+            $this->ownQuestion($q);
             Db::delete('questions', 'id = ?', [$q['id']]);
             flash('success', 'Question deleted.');
         }

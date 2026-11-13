@@ -1,5 +1,5 @@
 <?php partial('course_tabs', ['tab' => $tab]); $cid = (int)$c['id']; ?>
-<p><a href="<?= e(url('/admin/courses')) ?>">← All courses</a> · <a href="<?= e(url('/admin/courses/' . $cid)) ?>">Course details</a> · <a href="<?= e(url('/learn/' . $c['slug'])) ?>" target="_blank">Preview as student ↗</a> · <a href="<?= e(url('/learn/' . $c['slug'] . '/chat')) ?>" target="_blank">💬 Course chat ↗</a></p>
+<p><a href="<?= e(url('/admin/courses')) ?>">← <?= Auth::isAdmin() ? 'All courses' : 'My courses' ?></a> · <a href="<?= e(url('/admin/courses/' . $cid)) ?>">Course details</a> · <a href="<?= e(url('/admin/progress/' . $cid)) ?>">Student progress</a> · <a href="<?= e(url('/learn/' . $c['slug'])) ?>" target="_blank">Preview as student ↗</a> · <a href="<?= e(url('/learn/' . $c['slug'] . '/chat')) ?>" target="_blank">💬 Course chat ↗</a></p>
 <p class="muted"><strong><?= (int)$cur['lessons'] ?></strong> lessons · <strong><?= (int)$cur['quizzes'] ?></strong> quizzes · <?= (int)$cur['minutes'] ?> minutes of video. Use the arrows to reorder. Drafts are hidden from students.</p>
 
 <?php foreach ($cur['modules'] as $mi => $m): $mod = $m['module']; ?>

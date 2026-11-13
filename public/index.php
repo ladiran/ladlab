@@ -151,7 +151,7 @@ $router->post('/admin/login', [AdminAuthController::class, 'login']);
 $router->post('/admin/logout', [AdminAuthController::class, 'logout']);
 $router->get('/admin', [AdminController::class, 'dashboard']);
 $router->post('/admin/samples/clear', [AdminController::class, 'clearSamples']);
-$router->post('/admin/markdown-preview', [AdminController::class, 'markdownPreview']);
+$router->post('/admin/markdown-preview', [AdminCoursesController::class, 'markdownPreview']);
 $router->get('/admin/account', [AdminController::class, 'account']);
 $router->post('/admin/account', [AdminController::class, 'accountSave']);
 $router->get('/admin/settings/{group}', [AdminSettingsController::class, 'edit']);
@@ -201,6 +201,14 @@ $router->post('/admin/shop/shipping', [AdminShippingController::class, 'save']);
 
 /* Admin: courses */
 $router->get('/admin/courses', [AdminCoursesController::class, 'index']);
+$router->get('/admin/lecturers', [AdminLecturersController::class, 'index']);
+$router->post('/admin/lecturers/add', [AdminLecturersController::class, 'add']);
+$router->post('/admin/lecturers/{id:\d+}/bio', [AdminLecturersController::class, 'bio']);
+$router->post('/admin/lecturers/{id:\d+}/remove', [AdminLecturersController::class, 'remove']);
+$router->get('/admin/progress', [AdminProgressController::class, 'index']);
+$router->get('/admin/progress/{id:\d+}', [AdminProgressController::class, 'course']);
+$router->get('/admin/progress/{id:\d+}/csv', [AdminProgressController::class, 'csv']);
+$router->get('/admin/progress/{id:\d+}/student/{uid:\d+}', [AdminProgressController::class, 'student']);
 $router->get('/admin/courses/new', [AdminCoursesController::class, 'form']);
 $router->post('/admin/courses/new', [AdminCoursesController::class, 'save']);
 $router->get('/admin/courses/{id:\d+}', [AdminCoursesController::class, 'form']);
