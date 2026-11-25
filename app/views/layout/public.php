@@ -162,6 +162,7 @@ $cartCount = module_enabled('shop') ? Cart::count() : 0;
         <li><a href="<?= e(url('/events')) ?>">Events</a></li>
         <li><a href="<?= e(url('/press')) ?>">In the media</a></li>
         <li><a href="<?= e(url('/toolbox')) ?>">Free tools for researchers</a></li>
+        <?php if (module_enabled('fakenews')): ?><li><a href="<?= e(url('/fakenews')) ?>">Fake news checker</a></li><?php endif; ?>
         <li><a href="<?= e(url('/resources')) ?>">Free downloads</a></li>
         <li><a href="<?= e(url('/contact')) ?>">Contact</a></li>
         <?php if (module_enabled('shop')): ?><li><a href="<?= e(url('/sales-terms')) ?>">Terms of Sale</a></li><?php endif; ?>

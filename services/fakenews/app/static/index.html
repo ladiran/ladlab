@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fake News Checker</title>
+<style>
+  :root { --bg:#f7f7f5; --fg:#1d1d1b; --card:#fff; --muted:#6b6b66; --line:#dcdcd6;
+          --fake:#b3261e; --ok:#1e7b34; --unk:#9a6700; --accent:#2457c5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161615; --fg:#ececea; --card:#222221; --muted:#a0a09a; --line:#3a3a37;
+            --fake:#ff6b61; --ok:#5fd07a; --unk:#e3b341; --accent:#7aa2ff; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  form, .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  label { display:block; font-weight:600; margin:12px 0 4px; }
+  label:first-of-type { margin-top:0; }
+  input, textarea { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px;
+                    background:var(--bg); color:var(--fg); font:inherit; }
+  button { margin-top:16px; padding:10px 18px; border:0; border-radius:8px; background:var(--accent);
+           color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #result { margin-top:20px; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:99px; font-weight:700; color:#fff; }
+  .verified_fake { background:var(--fake); } .authenticated { background:var(--ok); }
+  .unverified { background:var(--unk); }
+  .score { color:var(--muted); margin-left:8px; }
+  ul { padding-left:0; list-style:none; } li { border-top:1px solid var(--line); padding:10px 0; }
+  .tag { font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .dir-fake { border-left:4px solid var(--fake); padding-left:10px; }
+  .dir-authentic { border-left:4px solid var(--ok); padding-left:10px; }
+  .dir-neutral { border-left:4px solid var(--line); padding-left:10px; }
+  small.note { color:var(--muted); display:block; margin-top:16px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fake News Checker</h1>
+  <p class="lead">Paste a headline, a link, or a social media handle. Fill in whatever you have.</p>
+  <form id="f">
+    <label for="title">Headline or claim</label>
+    <textarea id="title" rows="2" maxlength="500"></textarea>
+    <label for="url">Link (URL)</label>
+    <input id="url" type="text" inputmode="url" placeholder="https://example.com/story">
+    <label for="handle">Social media handle or profile link</label>
+    <input id="handle" type="text" placeholder="@name or https://bsky.app/profile/name">
+    <button id="go" type="submit">Check</button>
+  </form>
+  <div id="result" aria-live="polite"></div>
+  <small class="note">This tool gives evidence, not certainty. "Unverified" means we could not
+  confirm it either way, which is not the same as false.</small>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const LABEL = { verified_fake:"Verified fake", unverified:"Unverified", authenticated:"Authenticated" };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const safeLink = u => /^https?:\/\//i.test(u || "") ? u : null;
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const body = { title:$("title").value.trim() || null, url:$("url").value.trim() || null,
+                 handle:$("handle").value.trim() || null };
+  if (!body.title && !body.url && !body.handle) { $("result").textContent = "Please fill in at least one field."; return; }
+  $("go").disabled = true; $("result").textContent = "Checking...";
+  try {
+    const r = await fetch("/api/check", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    render(await r.json());
+  } catch (err) { $("result").textContent = "Something went wrong: " + err.message; }
+  finally { $("go").disabled = false; }
+});
+
+function render(d) {
+  const items = d.evidence.map(ev => {
+    const l = safeLink(ev.link);
+    return `<li class="dir-${esc(ev.direction)}"><span class="tag">${esc(ev.source)}</span><br>${esc(ev.detail)}` +
+           (l ? ` <a href="${esc(l)}" target="_blank" rel="noopener noreferrer">source</a>` : "") + `</li>`;
+  }).join("");
+  const skipped = d.skipped.length ? `<small class="note">Not checked: ${d.skipped.map(esc).join("; ")}</small>` : "";
+  $("result").innerHTML = `<div class="card"><span class="badge ${esc(d.verdict)}">${LABEL[d.verdict]}</span>` +
+    `<span class="score">credibility ${d.score}/100</span><p>${esc(d.summary)}</p>` +
+    `<ul>${items || "<li>No evidence collected.</li>"}</ul>${skipped}</div>`;
+}
+</script>
+</body>
+</html>

@@ -680,3 +680,28 @@ a.course-card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(11,31,
 .stat .stat-n{margin:0;font:700 1.7rem var(--font-head);color:var(--sky)}
 .stat p.small{margin:2px 0 0}
 .lecturer-line{margin:6px 0 0;opacity:.95}
+
+/* Fake news checker */
+.fn-form label{display:block;font-weight:600;margin:14px 0 4px}
+.fn-form label:first-child{margin-top:0}
+.fn-form input,.fn-form textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--ink);background:#fff}
+.fn-form button{margin-top:6px}
+.fn-result{margin:20px 0}
+.fn-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:8px}
+.fn-badge{display:inline-block;padding:4px 14px;border-radius:99px;font-weight:700;color:#fff;font-size:.9rem}
+.fn-verified_fake{background:var(--red)}.fn-authenticated{background:var(--green)}.fn-unverified{background:var(--sun-dark)}
+.fn-score{color:var(--storm);font-size:.9rem}
+.fn-evidence{list-style:none;padding:0;margin:12px 0 0}
+.fn-evidence li{border-top:1px solid var(--line);padding:10px 0 10px 12px;border-left:4px solid var(--line)}
+.fn-evidence .fn-dir-fake{border-left-color:var(--red)}.fn-evidence .fn-dir-authentic{border-left-color:var(--green)}
+.fn-source{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--storm)}
+.fn-legend{margin:28px 0}
+.fn-legend .card p{margin:10px 0 0}
+.fn-feature{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:20px;text-decoration:none;color:inherit;border-left:4px solid var(--sun)}
+.fn-feature:hover{color:inherit;box-shadow:0 4px 16px rgba(11,31,58,.14)}
+.fn-feature .pillar-icon{margin:0}
+.fn-feature-text{flex:1 1 320px}
+.fn-feature-text h3{margin-bottom:.2em}
+.fn-feature-text p{margin:0;color:var(--storm);font-size:.95rem}
+.fn-feature .more{font-weight:600;color:var(--sky)}
+@media (max-width:760px){.fn-legend{grid-template-columns:1fr}}

@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+.env
+.venv/
+app/ml/artifacts/*
+!app/ml/artifacts/.gitkeep
+data/

@@ -73,6 +73,8 @@ final class SettingsDef
                 ['enable_learn', 'checkbox', 'Learn (courses) is live', '0', 'Switched on automatically when the courses phase is installed.'],
                 ['enable_shop', 'checkbox', 'Shop is live', '0', ''],
                 ['enable_news', 'checkbox', 'News is live', '0', ''],
+                ['enable_fakenews', 'checkbox', 'Fake news checker is live', '0', 'Shows the checker on the home page and at /fakenews. The checker program must be running: see services/fakenews/README.md.'],
+                ['fakenews_api_url', 'text', 'Fake news checker address', 'http://127.0.0.1:8765', 'Where the checker program listens. Keep the default unless you host it elsewhere. Plain http:// is accepted only for this computer (127.0.0.1 or localhost); any other address must start with https://.'],
                 ['lecturer_label', 'text', 'What to call the people who teach courses', 'Lecturer', 'For example Lecturer, Instructor, Tutor or Teacher. Shown on course pages and in the admin area.'],
             ]],
             'news' => ['label' => 'News rules', 'icon' => '📰', 'fields' => [

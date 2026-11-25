@@ -94,6 +94,8 @@ $router->get('/resources/{id:\d+}/download', [SiteController::class, 'resourceDo
 $router->get('/resources/{id:\d+}/report', [SiteController::class, 'resourceReportForm']);
 $router->post('/resources/{id:\d+}/report', [SiteController::class, 'resourceReport']);
 $router->get('/copyright', [SiteController::class, 'legal']);
+$router->get('/fakenews', [FakeNewsController::class, 'index']);
+$router->post('/fakenews/check', [FakeNewsController::class, 'check']);
 
 /* Customer accounts */
 $router->get('/login', [AccountController::class, 'loginForm']);

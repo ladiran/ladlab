@@ -10,6 +10,7 @@ Plain PHP 8 + MySQL/MariaDB. No frameworks, no Composer, no build step.
 * **Phase 7 (Free tools):** a curated directory at `/toolbox` of free learning, teaching and research resources (YouTube lessons, open textbooks, software such as WRF and Quantum ESPRESSO with install notes, data, papers), managed in Admin → Free tools (links).
 * **Phase 8 (Copyright safeguards):** every Free Resource carries a licence, an author credit and a rights confirmation, each has a "Report a problem" link, and there is a Copyright and takedown policy page.
 * **Phase 9 (Search engines):** sitemap, robots.txt, canonical links, structured data, sharing tags, blog feed, verification codes for Google/Bing/Yandex and IndexNow, plus Admin → Search engines (SEO).
+* **Phase 10 (Fake news checker):** a section at `/fakenews`, with a card on the home page, where visitors paste a headline, link or social media handle and get *verified fake*, *unverified* or *authenticated* with the evidence shown. It is powered by a small Python program in `services/fakenews/` that runs beside the site (see section 3h).
 * **News refresh and scrolling bar:** the news updates itself every 2 hours (adjustable) and the bar under the header scrolls (BREAKING in red; the latest headlines in blue when nothing is breaking), with a pause button.
 * **Phase 6 (Security hardening):** encrypted database and email passwords, a dedicated limited database user, optional two-step verification (Google/Microsoft Authenticator and similar) with recovery codes, an Admin → Security page with a plain-language checklist, sign-in history and alerts, "sign out everywhere", stronger passwords and sessions.
 * On hold: online payment gateway (bank transfer remains the payment method).
@@ -165,6 +166,25 @@ Built in, nothing to install:
 3. Open **Admin → Search engines (SEO)** and follow the three steps there: verify in **Google Search Console** and **Bing Webmaster Tools** (paste the codes into the boxes), and submit `sitemap.xml` in both.
 
 Be realistic: nobody can guarantee ranking. A new site is normally crawled within days and fully indexed within a few weeks; ranking depends on useful, original content, links from other sites (link to it from Google Scholar, ORCID, LinkedIn, ResearchGate and your university page) and time.
+## 3h. Phase 10: Fake news checker (`/fakenews`)
+
+The checker is a separate Python program (FastAPI) kept in `services/fakenews/`. PHP cannot run it, so it runs beside the site and listens on **this computer only** (`127.0.0.1:8765`). Visitors never reach it directly: their browser calls `/fakenews/check` on your site (same address, CSRF-protected, limited to 20 checks per visitor per hour), and the site forwards the request. The answer is rebuilt field by field before it is shown.
+
+**Switch it on**
+1. Install **Python 3.10 or newer** on the same computer or server as the website.
+2. One time: open a terminal in `services/fakenews` and run `pip install -r requirements.txt`.
+3. Optional but recommended: copy `services/fakenews/.env.example` to `.env` and paste your two free keys (Google Fact Check Tools and Google Safe Browsing). Without them the checker still works, it just skips those two checks.
+4. Start it: double-click `services\fakenews\run_windows.bat` (Linux or macOS: `services/fakenews/run.sh`). Leave the window open. To start it with the computer, schedule it, for example in PowerShell: `schtasks /Create /SC ONSTART /TN "ClearSkyChecker" /TR "\"C:\wamp64\www\clearsky_academy\services\fakenews\run_windows.bat\"" /F`
+5. Site database: open `/admin` and press **Apply update now** (or run `php tools/migrate.php`). This runs migration `021_fakenews`, which switches the section on.
+
+**Control it from Admin → Settings → Site sections:** tick or untick *Fake news checker is live* (unticked hides the home-page card, the footer link and the page), and *Fake news checker address* (default `http://127.0.0.1:8765`; a different machine must use `https://`).
+
+If the program is not running, the page says so and visitors see a friendly message instead of an error. The home-page card is controlled only by the switch above, so untick it if you stop the program for long.
+
+**The optional trained models** (writing-style hints worth at most 4 points, because they generalise poorly to unseen outlets) are not shipped. To train them, download the datasets as described in `services/fakenews/README.md` and run `python -m app.ml.train` inside `services/fakenews`.
+
+**What visitors are told:** what they type is sent to outside fact-checking and safety services; the checker does not store it; the answer is evidence, not certainty. Review the wording on `app/views/public/fakenews.php` and your Privacy page to be sure they match how you run it.
+
 ## 4. Phase 2: the news desk (unchanged)
 See sections in the admin: Admin → **Science news** (stories, sources, rules, reader reports, log, kill-switch). Fetch with **Fetch news now** or schedule `cron/fetch_news.php`. Safeguards: tiered whitelist, HTTPS feeds on the source's own domains, no rewriting, strict BREAKING (needs a breaking word in the headline **and** a Tier 1 authority or enough independent Tier 1/2 sources; stale, probation and press-release stories never qualify), quality filters, 48-hour re-checks with auto-hide/update, source health auto-pause, public policy page, daily digest email. Source list status at install is shown in Admin; sources that had no reachable feed on 8 Oct 2026 are added paused with notes.
 
@@ -184,6 +204,7 @@ config/         config.php and .env (created by the installer; never commit it)
 cron/           fetch_news.php (every 10 min), shop_cleanup.php (hourly)
 database/       schema.sql, seed.sql, migrations/ (applied once each, in order), fresh_install.sql (everything in one file)
 storage/        logs, locks, keys/app.key (master key, back it up), private/receipts, private/videos, private/course-files (never web-accessible)
+services/       fakenews/ (the Python fake news checker, run beside the site; never web-accessible)
 tools/          install_cli.php, migrate.php, create_admin.php, secure_config.php, reset_2fa.php, devrouter.php
 ```
 

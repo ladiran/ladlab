@@ -8,10 +8,10 @@ final class Seo
     private const PRIVATE = [
         '#^/(admin|account|cart|checkout|order|enrolment|login|register|logout|forgot-password|reset-password|newsletter|certificate|subscribe|install\.php)(/|$)#',
         '#^/learn/(video|file)/#', '#^/learn/[^/]+/(quiz|enrol|review)#', '#^/learn/[^/]+/lesson/\d+/(complete|ask)#',
-        '#^/toolbox/(go|suggest)#', '#^/resources/\d+/(download|report)#', '#^/news/(tick|report)#', '#^/shop/[^/]+/notify#', '#^/my-#',
+        '#^/toolbox/(go|suggest)#', '#^/fakenews/check#', '#^/resources/\d+/(download|report)#', '#^/news/(tick|report)#', '#^/shop/[^/]+/notify#', '#^/my-#',
     ];
     /** Folders listed as Disallow in robots.txt (crawling them is pointless). */
-    private const ROBOTS_DISALLOW = ['/admin', '/account', '/cart', '/checkout', '/order/', '/enrolment/', '/login', '/register', '/logout', '/forgot-password', '/reset-password', '/newsletter/', '/certificate/', '/learn/video/', '/learn/file/', '/toolbox/go/', '/news/tick', '/install.php', '/storage/', '/config/', '/app/', '/database/', '/cron/', '/tools/'];
+    private const ROBOTS_DISALLOW = ['/admin', '/account', '/cart', '/checkout', '/order/', '/enrolment/', '/login', '/register', '/logout', '/forgot-password', '/reset-password', '/newsletter/', '/certificate/', '/learn/video/', '/learn/file/', '/toolbox/go/', '/fakenews/check', '/news/tick', '/install.php', '/storage/', '/config/', '/app/', '/database/', '/cron/', '/tools/'];
 
     /** May this site be indexed at all? Only a "live website" install (APP_ENV=production), or ALLOW_INDEXING=1. */
     public static function indexingAllowed(): bool
@@ -167,7 +167,7 @@ final class Seo
         if (!$seg) {
             return null;
         }
-        $names = ['blog' => 'Blog', 'shop' => 'Shop', 'learn' => 'Learn', 'news' => 'News', 'toolbox' => 'Free tools', 'resources' => 'Free resources', 'events' => 'Events', 'press' => 'In the media', 'services' => 'Services', 'research' => 'Research', 'about' => 'About', 'speaking' => 'Speaking', 'contact' => 'Contact'];
+        $names = ['blog' => 'Blog', 'shop' => 'Shop', 'learn' => 'Learn', 'news' => 'News', 'toolbox' => 'Free tools', 'fakenews' => 'Fake news checker', 'resources' => 'Free resources', 'events' => 'Events', 'press' => 'In the media', 'services' => 'Services', 'research' => 'Research', 'about' => 'About', 'speaking' => 'Speaking', 'contact' => 'Contact'];
         $items = [['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => abs_url('')]];
         if (isset($names[$seg[0]])) {
             $items[] = ['@type' => 'ListItem', 'position' => 2, 'name' => $names[$seg[0]], 'item' => abs_url($seg[0])];
@@ -203,6 +203,9 @@ final class Seo
         };
         foreach (['', 'about', 'research', 'blog', 'contact', 'services', 'speaking', 'press', 'events', 'resources', 'toolbox'] as $p) {
             $add($p);
+        }
+        if (module_enabled('fakenews')) {
+            $add('fakenews');
         }
         $try = function (callable $fn): void {
             try {

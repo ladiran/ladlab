@@ -46,6 +46,16 @@ $pillars = [
         </a>
       <?php endforeach; ?>
     </div>
+    <?php if (module_enabled('fakenews')): ?>
+      <a class="card fn-feature" href="<?= e(url('/fakenews')) ?>">
+        <span class="pillar-icon">🔍</span>
+        <div class="fn-feature-text">
+          <h3>Fake news checker</h3>
+          <p>Seen a story you are not sure about? Paste the headline, link or social media handle and find out whether it is verified fake, unverified or authenticated, with the evidence shown.</p>
+        </div>
+        <span class="more">Check a story →</span>
+      </a>
+    <?php endif; ?>
   </div>
 </section>
 
