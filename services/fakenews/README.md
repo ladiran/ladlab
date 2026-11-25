@@ -100,6 +100,43 @@ Notes:
   disables the model with a message instead of crashing.
 - Without a model the app runs as before and lists the classifier under "Not checked".
 
+## Running it on an Ubuntu server
+The checker listens on `127.0.0.1:8765` only. Never publish that port, and never point a Cloudflare tunnel at it: the website talks to it, visitors do not. Run these on the server, one at a time.
+
+```bash
+sudo apt install python3-venv git
+sudo useradd --system --home-dir /opt/fakenews --create-home --shell /usr/sbin/nologin fakenews
+sudo mkdir -p /opt/fakenews/service
+sudo rsync -a --exclude '.env' --exclude '.venv' --exclude '__pycache__' --exclude 'tests' ~/ladlab/services/fakenews/ /opt/fakenews/service/
+sudo /usr/bin/python3 -m venv /opt/fakenews/venv
+sudo /opt/fakenews/venv/bin/pip install fastapi uvicorn httpx pydantic python-dotenv scikit-learn joblib
+sudo /opt/fakenews/venv/bin/pip freeze | sudo tee /opt/fakenews/requirements.lock > /dev/null
+sudo chown -R root:root /opt/fakenews
+sudo chmod -R go-w /opt/fakenews
+```
+
+Free keys (optional but recommended) go in `/etc/fakenews.env`, readable only by root (systemd reads it, the checker never sees the file):
+
+```bash
+sudo cp /opt/fakenews/service/.env.example /etc/fakenews.env
+sudo nano /etc/fakenews.env
+sudo chmod 600 /etc/fakenews.env
+```
+
+Start it with the unit file in `deploy/`, then check it:
+
+```bash
+sudo cp /opt/fakenews/service/deploy/fakenews.service /etc/systemd/system/fakenews.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now fakenews
+systemctl status fakenews --no-pager
+curl -s http://127.0.0.1:8765/api/health
+```
+
+The last command should print `{"status":"ok",...}`. If not: `journalctl -u fakenews -n 50 --no-pager`. Finally open **Admin → Settings → Site sections** and tick *Fake news checker is live*.
+
+To update it later: `cd ~/ladlab && git pull`, repeat the `rsync` line above, then `sudo systemctl restart fakenews`. Keep the Python packages patched too: `sudo /opt/fakenews/venv/bin/pip list --outdated`.
+
 ## Customising
 Edit `app/data/sources.json` to change the trusted, satire and unreliable domain lists.
 

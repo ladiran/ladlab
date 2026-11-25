@@ -1,0 +1,41 @@
+# Runs the fake news checker on an Ubuntu server, as its own unprivileged user, on this computer only.
+# Install:  sudo cp fakenews.service /etc/systemd/system/fakenews.service
+#           sudo systemctl daemon-reload && sudo systemctl enable --now fakenews
+# Layout assumed: code in /opt/fakenews/service, Python packages in /opt/fakenews/venv, keys in /etc/fakenews.env.
+
+[Unit]
+Description=ClearSky fake news checker (listens on 127.0.0.1 only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fakenews
+Group=fakenews
+WorkingDirectory=/opt/fakenews/service
+EnvironmentFile=-/etc/fakenews.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/fakenews/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5
+
+# Keep it small and boxed in: the website and database on this server must never feel it.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+MemoryMax=1G
+CPUQuota=100%
+TasksMax=100
+
+[Install]
+WantedBy=multi-user.target

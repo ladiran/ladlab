@@ -180,6 +180,8 @@ The checker is a separate Python program (FastAPI) kept in `services/fakenews/`.
 
 6. **Switch it on** once the program is running: **Admin → Settings → Site sections** → tick *Fake news checker is live* and save. Until then the home-page card, the footer link and the page stay hidden.
 
+**On an Ubuntu server** install it as a locked-down service that starts by itself: see *Running it on an Ubuntu server* in `services/fakenews/README.md` (unit file: `services/fakenews/deploy/fakenews.service`) or Part F of `docs/proxyUpdating.docx`.
+
 **Control it from Admin → Settings → Site sections:** tick or untick *Fake news checker is live* (unticked hides the home-page card, the footer link and the page), and *Fake news checker address* (default `http://127.0.0.1:8765`; a different machine must use `https://`).
 
 If the program is not running, the page says so and visitors see a friendly message instead of an error. The home-page card is controlled only by the switch above, so untick it if you stop the program for long. The trusted, satire and unreliable site lists are in `services/fakenews/app/data/sources.json`; the *unreliable* list ships empty, and a site on it is called verified fake outright, so add to it only sites you have verified yourself.
