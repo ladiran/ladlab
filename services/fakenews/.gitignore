@@ -4,4 +4,4 @@ __pycache__/
 .venv/
 app/ml/artifacts/*
 !app/ml/artifacts/.gitkeep
-data/
+/data/

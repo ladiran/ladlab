@@ -1,0 +1,50 @@
+{
+  "suspicious_tlds": [
+    "top",
+    "xyz",
+    "click",
+    "work",
+    "gq",
+    "ml",
+    "cf",
+    "tk",
+    "ga",
+    "buzz",
+    "country",
+    "stream",
+    "zip",
+    "mov",
+    "loan",
+    "icu"
+  ],
+  "trusted": [
+    "bbc.com",
+    "bbc.co.uk",
+    "reuters.com",
+    "apnews.com",
+    "afp.com",
+    "theguardian.com",
+    "nytimes.com",
+    "washingtonpost.com",
+    "aljazeera.com",
+    "dw.com",
+    "nature.com",
+    "science.org",
+    "nasa.gov",
+    "noaa.gov",
+    "esa.int",
+    "who.int",
+    "un.org"
+  ],
+  "satire": [
+    "theonion.com",
+    "clickhole.com",
+    "babylonbee.com",
+    "waterfordwhispersnews.com",
+    "thedailymash.co.uk",
+    "thebeaverton.com",
+    "newsthump.com",
+    "thehardtimes.net"
+  ],
+  "known_unreliable": []
+}

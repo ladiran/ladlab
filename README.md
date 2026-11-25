@@ -166,6 +166,7 @@ Built in, nothing to install:
 3. Open **Admin → Search engines (SEO)** and follow the three steps there: verify in **Google Search Console** and **Bing Webmaster Tools** (paste the codes into the boxes), and submit `sitemap.xml` in both.
 
 Be realistic: nobody can guarantee ranking. A new site is normally crawled within days and fully indexed within a few weeks; ranking depends on useful, original content, links from other sites (link to it from Google Scholar, ORCID, LinkedIn, ResearchGate and your university page) and time.
+
 ## 3h. Phase 10: Fake news checker (`/fakenews`)
 
 The checker is a separate Python program (FastAPI) kept in `services/fakenews/`. PHP cannot run it, so it runs beside the site and listens on **this computer only** (`127.0.0.1:8765`). Visitors never reach it directly: their browser calls `/fakenews/check` on your site (same address, CSRF-protected, limited to 20 checks per visitor per hour), and the site forwards the request. The answer is rebuilt field by field before it is shown.
@@ -175,11 +176,13 @@ The checker is a separate Python program (FastAPI) kept in `services/fakenews/`.
 2. One time: open a terminal in `services/fakenews` and run `pip install -r requirements.txt`.
 3. Optional but recommended: copy `services/fakenews/.env.example` to `.env` and paste your two free keys (Google Fact Check Tools and Google Safe Browsing). Without them the checker still works, it just skips those two checks.
 4. Start it: double-click `services\fakenews\run_windows.bat` (Linux or macOS: `services/fakenews/run.sh`). Leave the window open. To start it with the computer, schedule it, for example in PowerShell: `schtasks /Create /SC ONSTART /TN "ClearSkyChecker" /TR "\"C:\wamp64\www\clearsky_academy\services\fakenews\run_windows.bat\"" /F`
-5. Site database: open `/admin` and press **Apply update now** (or run `php tools/migrate.php`). This runs migration `021_fakenews`, which switches the section on.
+5. Site database: open `/admin` and press **Apply update now** (or run `php tools/migrate.php`). This runs migration `021_fakenews`, which adds the settings with the checker **switched off**.
+
+6. **Switch it on** once the program is running: **Admin → Settings → Site sections** → tick *Fake news checker is live* and save. Until then the home-page card, the footer link and the page stay hidden.
 
 **Control it from Admin → Settings → Site sections:** tick or untick *Fake news checker is live* (unticked hides the home-page card, the footer link and the page), and *Fake news checker address* (default `http://127.0.0.1:8765`; a different machine must use `https://`).
 
-If the program is not running, the page says so and visitors see a friendly message instead of an error. The home-page card is controlled only by the switch above, so untick it if you stop the program for long.
+If the program is not running, the page says so and visitors see a friendly message instead of an error. The home-page card is controlled only by the switch above, so untick it if you stop the program for long. The trusted, satire and unreliable site lists are in `services/fakenews/app/data/sources.json`; the *unreliable* list ships empty, and a site on it is called verified fake outright, so add to it only sites you have verified yourself.
 
 **The optional trained models** (writing-style hints worth at most 4 points, because they generalise poorly to unseen outlets) are not shipped. To train them, download the datasets as described in `services/fakenews/README.md` and run `python -m app.ml.train` inside `services/fakenews`.
 

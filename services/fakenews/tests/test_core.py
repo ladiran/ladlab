@@ -140,3 +140,11 @@ def test_health_endpoint():
     with TestClient(app) as tc:
         r = tc.get("/api/health")
     assert r.status_code == 200 and r.json()["status"] == "ok"
+
+
+# ---- the source lists must ship with the program (a .gitignore rule once hid them)
+def test_source_lists_present():
+    from app import sources
+    cfg = sources.load()
+    assert set(cfg) >= {"suspicious_tlds", "trusted", "satire", "known_unreliable"}
+    assert "bbc.co.uk" in cfg["trusted"] and "theonion.com" in cfg["satire"]
